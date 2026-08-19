@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Signal Desk</title>
+<style>
+  :root {
+    --ink: #EDEAE2; --ink-dim: #8B9099; --ink-faint: #5B5F68;
+    --bg: #12151A; --panel: #181C24; --panel-raised: #1E2330;
+    --border: #2A2F3B; --amber: #E3A23C; --amber-dim: #4A3A20;
+    --green: #5FBF8F; --green-dim: #1E3329; --red: #E2645F; --red-dim: #3A2020;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: var(--sans); background: var(--bg); color: var(--ink); }
+  .app { max-width: 1100px; margin: 0 auto; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .header { display: flex; align-items: center; justify-content: space-between; padding: 18px 24px; border-bottom: 1px solid var(--border); }
+  .eyebrow { font-size: 11px; color: var(--amber); letter-spacing: 1.5px; font-family: var(--mono); margin-bottom: 4px; }
+  .title { font-size: 17px; font-weight: 600; }
+  .body { display: flex; }
+  .nav { width: 170px; border-right: 1px solid var(--border); padding: 16px 10px; flex-shrink: 0; }
+  .nav-btn { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 9px 12px; border-radius: 6px; border: none; cursor: pointer; margin-bottom: 4px; background: transparent; color: var(--ink-dim); font-size: 13px; font-family: var(--sans); border-left: 2px solid transparent; }
+  .nav-btn.active { background: var(--panel-raised); color: var(--ink); border-left: 2px solid var(--amber); }
+  .main { flex: 1; min-width: 0; padding: 24px 28px; background: var(--panel); min-height: 520px; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+  .cards { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 24px; }
+  .card { background: var(--panel-raised); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }
+  .card-label { font-size: 11px; color: var(--ink-faint); letter-spacing: 0.5px; margin-bottom: 6px; }
+  .card-value { font-size: 15px; font-weight: 600; font-family: var(--mono); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+  .dot.green { background: var(--green); } .dot.red { background: var(--red); } .dot.amber { background: var(--amber); }
+  .kill-switch { display: flex; align-items: center; justify-content: space-between; border-radius: 8px; padding: 16px 18px; margin-bottom: 24px; border: 1px solid; }
+  .kill-btn { padding: 10px 20px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; font-family: var(--sans); }
+  .kill-btn.pause { background: var(--red-dim); color: var(--red); border: 1px solid var(--red); }
+  .kill-btn.resume { background: var(--green-dim); color: var(--green); border: 1px solid var(--green); }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th { text-align: left; color: var(--ink-faint); font-weight: 500; padding: 8px 10px; border-bottom: 1px solid var(--border); font-size: 11px; letter-spacing: 0.3px; }
+  td { padding: 9px 10px; border-bottom: 1px solid var(--border); color: var(--ink-dim); vertical-align: top; }
+  td.symbol { color: var(--ink); font-family: var(--mono); }
+  .badge { padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .badge.approved { background: var(--green-dim); color: var(--green); }
+  .badge.rejected { background: var(--red-dim); color: var(--red); }
+  .field { margin-bottom: 20px; }
+  .field-label { display: block; font-size: 12px; color: var(--ink-dim); margin-bottom: 6px; }
+  .field-hint { font-size: 12px; color: var(--ink-faint); margin-top: 6px; line-height: 1.5; }
+  input[type=text], input[type=number] { width: 100%; background: var(--panel-raised); border: 1px solid var(--border); border-radius: 6px; padding: 9px 11px; color: var(--ink); font-size: 13px; font-family: var(--mono); outline: none; }
+  input[type=number] { width: 90px; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .row-gap24 { display: flex; gap: 24px; }
+  .size-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+  .size-row input[type=text] { flex: 1; }
+  .icon-btn { background: none; border: none; cursor: pointer; color: var(--ink-faint); padding: 6px; }
+  .dashed-btn { display: flex; align-items: center; gap: 6px; background: none; border: 1px dashed var(--border); border-radius: 6px; padding: 6px 10px; color: var(--ink-dim); font-size: 12px; cursor: pointer; margin-top: 4px; }
+  .save-btn { background: var(--amber-dim); color: var(--amber); border: 1px solid var(--amber); border-radius: 6px; padding: 9px 18px; font-size: 13px; font-weight: 500; cursor: pointer; font-family: var(--sans); }
+  .save-btn.saved { background: var(--green-dim); color: var(--green); border-color: var(--green); }
+  .empty { color: var(--ink-faint); font-size: 13px; padding: 20px 0; text-align: center; }
+  .info-box { background: var(--panel-raised); border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; font-size: 13px; color: var(--ink-dim); line-height: 1.7; margin-bottom: 20px; }
+  .info-box code { color: var(--amber); font-family: var(--mono); }
+  .env-btn { padding: 8px 16px; border-radius: 6px; font-size: 13px; cursor: pointer; font-family: var(--sans); border: 1px solid var(--border); background: transparent; color: var(--ink-dim); margin-right: 8px; }
+  .env-btn.active { border-color: var(--amber); background: var(--amber-dim); color: var(--amber); }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="header">
+    <div>
+      <div class="eyebrow">SIGNAL DESK — LIVE</div>
+      <div class="title">Discord &rarr; Tastytrade control panel</div>
+    </div>
+    <button id="shutdownBtn" onclick="confirmShutdown()" style="background: var(--red-dim); color: var(--red); border: 1px solid var(--red); border-radius: 6px; padding: 8px 16px; font-size: 13px; font-weight: 500; cursor: pointer; font-family: var(--sans);">Shut down</button>
+  </div>
+
+  <div class="body">
+    <div class="nav">
+      <button class="nav-btn" data-tab="setup" onclick="showTab('setup')">Setup</button>
+      <button class="nav-btn active" data-tab="live" onclick="showTab('live')">Live</button>
+      <button class="nav-btn" data-tab="risk" onclick="showTab('risk')">Risk filters</button>
+    </div>
+
+    <div class="main">
+      <div class="tab-panel" id="tab-setup">
+        <div id="setupBanner" style="display:none;" class="info-box"></div>
+        <div id="vaultStatusBox" style="display:none;" class="info-box"></div>
+
+        <div class="field">
+          <label class="field-label">Discord user token</label>
+          <input type="text" id="discordUserToken" placeholder="Leave blank to keep current value">
+          <div class="field-hint">Your personal account's token — reminder: this automates your own Discord account, which is against Discord's ToS regardless of read-only use, and puts your whole account at risk. See the README.</div>
+        </div>
+
+        <div class="field">
+          <label class="field-label">Signal channel IDs</label>
+          <input type="text" id="channelIds" placeholder="111111111111111111, 222222222222222222">
+          <div class="field-hint">Comma-separated. Enable Developer Mode in Discord to copy a channel ID.</div>
+        </div>
+
+        <div class="field">
+          <label class="field-label">Tastytrade environment</label>
+          <div class="row">
+            <button class="env-btn" id="envSandboxBtn" onclick="setTtEnv('sandbox')">Sandbox / cert</button>
+            <button class="env-btn" id="envLiveBtn" onclick="setTtEnv('live')">Live account</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="field-label">Tastytrade client secret</label>
+          <input type="text" id="ttClientSecret" placeholder="Leave blank to keep current value">
+        </div>
+        <div class="field">
+          <label class="field-label">Tastytrade refresh token</label>
+          <input type="text" id="ttRefreshToken" placeholder="Leave blank to keep current value">
+        </div>
+        <div class="field">
+          <label class="field-label">Tastytrade account number</label>
+          <input type="text" id="ttAccountNumber" placeholder="5WX01234">
+        </div>
+
+        <div class="field">
+          <label class="field-label">Anthropic API key (optional)</label>
+          <input type="text" id="anthropicApiKey" placeholder="Leave blank to keep current value, or leave empty to disable">
+          <div class="field-hint">Powers the LLM fallback parser for signals the regex parser can't make sense of (typos, unusual formats). Only ever used to log unrecognized signals more clearly — it never causes a trade the app couldn't already place through the regular parser.</div>
+        </div>
+
+        <button class="save-btn" id="saveSetupBtn" onclick="saveSetupAndRestart()">Save &amp; restart</button>
+        <div class="field-hint" style="margin-top:10px;">Restarting takes a few seconds — this page will reload itself automatically.</div>
+      </div>
+
+      <div class="tab-panel active" id="tab-live">
+        <div id="combinedModeBanner" style="display:none; border-radius:8px; padding:14px 16px; margin-bottom:16px; border:1px solid; font-size:13px; font-weight:600;"></div>
+        <div class="cards" id="statusCards"></div>
+        <div id="ttErrorBox" class="info-box" style="display:none;"></div>
+
+        <div class="kill-switch" id="killSwitchBox">
+          <div>
+            <div id="killTitle" style="font-size:13px;font-weight:600;margin-bottom:2px;"></div>
+            <div id="killDesc" style="font-size:12px;color:var(--ink-dim);"></div>
+          </div>
+          <button class="kill-btn" id="killBtn" onclick="toggleKillSwitch()"></button>
+        </div>
+
+        <div class="info-box" style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:2px;">Broker round-trip latency</div>
+            <div style="font-size:12px;">A real, read-only call to Tastytrade (account balances) — never an order. Estimates the one leg Dry Run testing can't measure for real: the final network round-trip after your slippage check already passed.</div>
+          </div>
+          <button class="save-btn" id="latencyTestBtn" onclick="testBrokerLatency()" style="white-space:nowrap;">Test now</button>
+        </div>
+
+        <div style="font-size:11px;color:var(--ink-faint);letter-spacing:1px;margin-bottom:10px;font-family:var(--mono);">
+          RECENT ACTIVITY
+        </div>
+        <table>
+          <thead><tr><th>Time</th><th>Signal</th><th>Status</th><th>Detail</th><th>Latency</th></tr></thead>
+          <tbody id="tradesBody"></tbody>
+        </table>
+        <div id="tradesEmpty" class="empty" style="display:none;">No signals processed yet — this fills in as trades come through.</div>
+      </div>
+
+      <div class="tab-panel" id="tab-risk">
+        <div class="field">
+          <label class="field-label">Max slippage</label>
+          <div class="row"><input type="number" id="maxSlippagePct" min="0"><span style="color:var(--ink-dim);font-size:13px;">%</span></div>
+          <div class="field-hint">Applies to the next signal immediately on save — no restart needed.</div>
+        </div>
+
+        <div class="field">
+          <label class="field-label">Position sizing mode</label>
+          <div class="row">
+            <button class="env-btn" id="sizingModeTagBtn" onclick="setSizingMode('tag')">By risk tag</button>
+            <button class="env-btn" id="sizingModeBudgetBtn" onclick="setSizingMode('budget')">By dollar budget</button>
+          </div>
+          <div class="field-hint" id="sizingModeHint"></div>
+        </div>
+
+        <div class="field" id="tagModePanel">
+          <label class="field-label">Position sizing by signal tag</label>
+          <div id="sizeRows"></div>
+          <button class="dashed-btn" onclick="addSizeRow('', 1)">+ Add tag</button>
+          <div class="field" style="margin-top:14px;">
+            <label class="field-label">Default contracts</label>
+            <input type="number" id="defaultContracts" min="0">
+          </div>
+        </div>
+
+        <div class="field" id="budgetModePanel" style="display:none;">
+          <label class="field-label">Budget per trade</label>
+          <div class="row"><span style="color:var(--ink-dim);font-size:13px;">$</span><input type="number" id="budgetUsd" min="0" step="1"></div>
+          <div class="field-hint">The most contracts that fit at or under this amount, based on the live price at execution — never over, even if going one contract higher would land closer to the target.</div>
+        </div>
+
+        <div class="field">
+          <label class="field-label">Hard contract cap</label>
+          <input type="number" id="maxContractsCap" min="1">
+          <div class="field-hint">Absolute ceiling regardless of sizing mode — applies to both.</div>
+        </div>
+
+        <div class="row-gap24">
+          <div class="field">
+            <label class="field-label">Take profit</label>
+            <div class="row"><input type="number" id="takeProfitPct" min="0"><span style="color:var(--ink-dim);font-size:13px;">%</span></div>
+          </div>
+          <div class="field">
+            <label class="field-label">Stop loss</label>
+            <div class="row"><input type="number" id="stopLossPct" min="0"><span style="color:var(--ink-dim);font-size:13px;">%</span></div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="field-label">Entry order type</label>
+          <div class="row">
+            <button class="env-btn" id="entryLimitBtn" onclick="setEntryOrderType('limit')">Limit</button>
+            <button class="env-btn" id="entryMarketBtn" onclick="setEntryOrderType('market')">Market</button>
+          </div>
+          <div class="field-hint" id="entryOrderTypeHint"></div>
+        </div>
+
+        <div class="field">
+          <label class="field-label">Stop-loss order type</label>
+          <div class="row">
+            <button class="env-btn" id="stopStopBtn" onclick="setStopOrderType('stop')">Stop (market)</button>
+            <button class="env-btn" id="stopLimitBtn" onclick="setStopOrderType('stop_limit')">Stop-Limit</button>
+          </div>
+          <div class="field-hint" id="stopOrderTypeHint"></div>
+        </div>
+
+        <button class="save-btn" id="saveRiskBtn" onclick="saveRisk()">Save — applies immediately</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+let sizingMode = 'tag';
+let entryOrderType = 'limit';
+let stopOrderType = 'stop';
+let sizeTagMap = [];
+let currentlyPaused = false;
+let ttEnv = 'sandbox';
+let hasLandedOnSetup = false;
+
+function setEntryOrderType(type) {
+  entryOrderType = type;
+  document.getElementById('entryLimitBtn').classList.toggle('active', type === 'limit');
+  document.getElementById('entryMarketBtn').classList.toggle('active', type === 'market');
+  document.getElementById('entryOrderTypeHint').textContent = type === 'limit'
+    ? 'Protects against paying worse than the checked price, but may not fill if the market moves away first.'
+    : 'Guarantees a fill, but gives up all price protection at the moment the slippage check already passed.';
+}
+
+function setStopOrderType(type) {
+  stopOrderType = type;
+  document.getElementById('stopStopBtn').classList.toggle('active', type === 'stop');
+  document.getElementById('stopLimitBtn').classList.toggle('active', type === 'stop_limit');
+  document.getElementById('stopOrderTypeHint').textContent = type === 'stop'
+    ? 'Guaranteed to close the position once triggered, but the fill price could be worse than your stop level in a fast move.'
+    : 'Bounded fill price, but risks not filling at all in a gap — leaving the position open and unprotected.';
+}
+
+function setSizingMode(mode) {
+  sizingMode = mode;
+  document.getElementById('sizingModeTagBtn').classList.toggle('active', mode === 'tag');
+  document.getElementById('sizingModeBudgetBtn').classList.toggle('active', mode === 'budget');
+  document.getElementById('tagModePanel').style.display = mode === 'tag' ? 'block' : 'none';
+  document.getElementById('budgetModePanel').style.display = mode === 'budget' ? 'block' : 'none';
+  document.getElementById('sizingModeHint').textContent = mode === 'tag'
+    ? 'Contract count comes from the size tag in each signal (e.g. SMALL, LOTTO), looked up below.'
+    : 'Contract count is computed from a single dollar budget, regardless of any tag in the signal.';
+}
+
+function setTtEnv(env) {
+  ttEnv = env;
+  document.getElementById('envSandboxBtn').classList.toggle('active', env === 'sandbox');
+  document.getElementById('envLiveBtn').classList.toggle('active', env === 'live');
+}
+
+function showTab(name) {
+  document.querySelectorAll('.tab-panel').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  document.querySelector('.nav-btn[data-tab="' + name + '"]').classList.add('active');
+}
+
+function renderSizeRows() {
+  const container = document.getElementById('sizeRows');
+  container.innerHTML = '';
+  sizeTagMap.forEach((row, i) => {
+    const div = document.createElement('div');
+    div.className = 'size-row';
+    div.innerHTML = `
+      <input type="text" value="${row.tag}" placeholder="TAG" onchange="sizeTagMap[${i}].tag=this.value.toUpperCase()">
+      <input type="number" value="${row.contracts}" min="0" style="width:90px" onchange="sizeTagMap[${i}].contracts=Number(this.value)">
+      <button class="icon-btn" onclick="removeSizeRow(${i})">✕</button>
+    `;
+    container.appendChild(div);
+  });
+}
+function addSizeRow(tag, contracts) { sizeTagMap.push({tag, contracts}); renderSizeRows(); }
+function removeSizeRow(i) { sizeTagMap.splice(i, 1); renderSizeRows(); }
+
+async function fetchStatus() {
+  try {
+    const res = await fetch('/api/status');
+    const s = await res.json();
+    currentlyPaused = s.paused;
+
+    const modeBanner = document.getElementById('combinedModeBanner');
+    modeBanner.style.display = 'block';
+    const isSandbox = s.tt_env === 'sandbox';
+    if (isSandbox && s.dry_run) {
+      modeBanner.style.background = 'var(--panel-raised)'; modeBanner.style.borderColor = 'var(--border)'; modeBanner.style.color = 'var(--ink-dim)';
+      modeBanner.textContent = '🧪 SANDBOX + DRY RUN — fully inert. Signals are logged but nothing is submitted anywhere, not even to your test account.';
+    } else if (isSandbox && !s.dry_run) {
+      modeBanner.style.background = 'var(--green-dim)'; modeBanner.style.borderColor = 'var(--green)'; modeBanner.style.color = 'var(--green)';
+      modeBanner.textContent = '🧪 TEST MODE — real orders will be placed against your Tastytrade SANDBOX account with test funds. No real money at risk.';
+    } else if (!isSandbox && s.dry_run) {
+      modeBanner.style.background = 'var(--amber-dim)'; modeBanner.style.borderColor = 'var(--amber)'; modeBanner.style.color = 'var(--amber)';
+      modeBanner.textContent = '⚠️ LIVE ACCOUNT REFERENCED, DRY RUN ON — signals are logged but nothing will be submitted. Turn Dry Run off only when you mean to trade for real.';
+    } else {
+      modeBanner.style.background = 'var(--red-dim)'; modeBanner.style.borderColor = 'var(--red)'; modeBanner.style.color = 'var(--red)';
+      modeBanner.textContent = '🔴 LIVE TRADING — real orders, real money, on your live account.';
+    }
+
+    document.getElementById('statusCards').innerHTML = `
+      <div class="card"><div class="card-label">ORDERS</div><div class="card-value">${s.dry_run ? 'DRY RUN' : 'SUBMIT LIVE'}</div></div>
+      <div class="card"><div class="card-label">ACCOUNT</div><div class="card-value">${isSandbox ? 'Sandbox' : 'Live'}</div></div>
+      <div class="card"><div class="card-label">TRADING</div><div class="card-value"><span class="dot ${s.paused ? 'red' : 'green'}"></span>${s.paused ? 'Paused' : 'Running'}</div></div>
+      <div class="card"><div class="card-label">QUOTE STREAM</div><div class="card-value"><span class="dot ${s.stream_connected ? 'green' : (s.tastytrade_error ? 'red' : 'amber')}"></span>${s.stream_connected ? 'Connected' : (s.tastytrade_error ? 'Failed' : 'Connecting…')}</div></div>
+      <div class="card"><div class="card-label">UPTIME</div><div class="card-value">${Math.floor(s.uptime_seconds / 60)}m</div></div>
+    `;
+
+    const ttErrorBox = document.getElementById('ttErrorBox');
+    if (s.discord_error) {
+      ttErrorBox.style.display = 'block';
+      ttErrorBox.style.borderColor = 'var(--red)';
+      ttErrorBox.style.color = 'var(--red)';
+      ttErrorBox.innerHTML = '<strong>Discord connection failed:</strong> ' + s.discord_error +
+        '<br>This blocks everything downstream (Tastytrade never even attempts to connect). ' +
+        'Check your token on the Setup tab, then Save &amp; restart.';
+    } else if (s.tastytrade_error) {
+      ttErrorBox.style.display = 'block';
+      ttErrorBox.style.borderColor = 'var(--red)';
+      ttErrorBox.style.color = 'var(--red)';
+      ttErrorBox.innerHTML = '<strong>Tastytrade connection failed:</strong> ' + s.tastytrade_error +
+        '<br>Check your credentials on the Setup tab, then Save &amp; restart.';
+    } else {
+      ttErrorBox.style.display = 'none';
+    }
+
+    const box = document.getElementById('killSwitchBox');
+    const btn = document.getElementById('killBtn');
+    const title = document.getElementById('killTitle');
+    const desc = document.getElementById('killDesc');
+    if (s.paused) {
+      box.style.background = 'var(--red-dim)'; box.style.borderColor = 'var(--red)';
+      title.textContent = 'Trading paused'; title.style.color = 'var(--red)';
+      desc.textContent = 'Signals are still logged, but no orders will be submitted.';
+      btn.className = 'kill-btn resume'; btn.textContent = 'Resume trading';
+    } else {
+      box.style.background = 'var(--green-dim)'; box.style.borderColor = 'var(--green)';
+      title.textContent = 'Trading active'; title.style.color = 'var(--green)';
+      desc.textContent = 'Approved signals will execute normally.';
+      btn.className = 'kill-btn pause'; btn.textContent = 'Pause trading';
+    }
+
+    const banner = document.getElementById('setupBanner');
+    if (!s.configured) {
+      banner.style.display = 'block';
+      banner.innerHTML = 'Not fully configured yet — fill in Discord and Tastytrade details below, then Save &amp; restart.';
+      banner.style.borderColor = 'var(--amber)'; banner.style.color = 'var(--amber)';
+    } else {
+      banner.style.display = 'none';
+    }
+
+    const vaultBox = document.getElementById('vaultStatusBox');
+    vaultBox.style.display = 'block';
+    if (s.secure_storage_active) {
+      vaultBox.style.borderColor = 'var(--green)'; vaultBox.style.color = 'var(--green)';
+      vaultBox.innerHTML = '🔒 Secure storage active — tokens and secrets saved below are encrypted in your OS credential vault, not stored as plaintext in .env.';
+    } else {
+      vaultBox.style.borderColor = 'var(--amber)'; vaultBox.style.color = 'var(--amber)';
+      vaultBox.innerHTML = '⚠️ No OS credential vault detected on this machine — secrets will be saved as plaintext in .env instead. The app still works fully, just with weaker protection of saved tokens.';
+    }
+
+    if (!s.configured && !hasLandedOnSetup) {
+      hasLandedOnSetup = true;
+      showTab('setup');
+    }
+
+    if (!window._setupLoaded) {
+      setTtEnv(s.tt_env);
+      document.getElementById('channelIds').value = s.channels.join(', ');
+      document.getElementById('ttAccountNumber').value = s.tt_account_number || '';
+      document.getElementById('discordUserToken').placeholder = s.has_discord_token ? 'Currently set — leave blank to keep it' : 'Leave blank to keep current value';
+      document.getElementById('ttClientSecret').placeholder = s.has_tt_credentials ? 'Currently set — leave blank to keep it' : 'Leave blank to keep current value';
+      document.getElementById('ttRefreshToken').placeholder = s.has_tt_credentials ? 'Currently set — leave blank to keep it' : 'Leave blank to keep current value';
+      document.getElementById('anthropicApiKey').placeholder = s.has_anthropic_key ? 'Currently set — leave blank to keep it' : 'Leave blank to keep current value, or leave empty to disable';
+      window._setupLoaded = true;
+    }
+
+    if (!window._riskLoaded) {
+      document.getElementById('maxSlippagePct').value = s.risk.max_slippage_pct;
+      document.getElementById('defaultContracts').value = s.risk.default_contracts;
+      document.getElementById('maxContractsCap').value = s.risk.max_contracts_hard_cap;
+      document.getElementById('takeProfitPct').value = s.risk.take_profit_pct;
+      document.getElementById('stopLossPct').value = s.risk.stop_loss_pct;
+      document.getElementById('budgetUsd').value = s.risk.budget_usd;
+      setSizingMode(s.risk.sizing_mode);
+      setEntryOrderType(s.risk.entry_order_type);
+      setStopOrderType(s.risk.stop_order_type);
+      sizeTagMap = Object.entries(s.risk.size_tag_map).map(([tag, contracts]) => ({tag, contracts}));
+      renderSizeRows();
+      window._riskLoaded = true;
+    }
+  } catch (e) {
+    document.getElementById('statusCards').innerHTML = `<div class="card" style="grid-column:1/-1;"><div class="card-value" style="color:var(--red)">Can't reach the bot process — is it running?</div></div>`;
+  }
+}
+
+async function saveSetupAndRestart() {
+  const btn = document.getElementById('saveSetupBtn');
+  btn.textContent = 'Saving…';
+  const ids = document.getElementById('channelIds').value.split(',').map(s => s.trim()).filter(Boolean).map(Number);
+  const payload = {
+    discord_signal_channel_ids: ids,
+    tt_env: ttEnv,
+    tt_account_number: document.getElementById('ttAccountNumber').value,
+  };
+  const userToken = document.getElementById('discordUserToken').value;
+  const clientSecret = document.getElementById('ttClientSecret').value;
+  const refreshToken = document.getElementById('ttRefreshToken').value;
+  const anthropicKey = document.getElementById('anthropicApiKey').value;
+  if (userToken) payload.discord_user_token = userToken;
+  if (clientSecret) payload.tt_client_secret = clientSecret;
+  if (refreshToken) payload.tt_refresh_token = refreshToken;
+  if (anthropicKey) payload.anthropic_api_key = anthropicKey;
+
+  await fetch('/api/credentials', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)});
+  btn.textContent = 'Restarting…';
+  await fetch('/api/restart', {method: 'POST'});
+
+  let attempts = 0;
+  const poll = setInterval(async () => {
+    attempts++;
+    try {
+      const res = await fetch('/health');
+      if (res.ok) { clearInterval(poll); location.reload(); }
+    } catch (e) {}
+    if (attempts > 30) {
+      clearInterval(poll);
+      btn.textContent = 'Not back yet — check your terminal';
+      btn.style.color = 'var(--red)';
+    }
+  }, 1000);
+}
+
+async function testBrokerLatency() {
+  const btn = document.getElementById('latencyTestBtn');
+  const original = btn.textContent;
+  btn.textContent = 'Testing…';
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/test-broker-latency', {method: 'POST'});
+    const data = await res.json();
+    if (data.error) {
+      btn.textContent = 'Failed — see logs';
+      btn.style.color = 'var(--red)';
+    } else {
+      btn.textContent = `${data.latency_ms}ms`;
+      btn.style.color = 'var(--green)';
+    }
+  } catch (e) {
+    btn.textContent = 'Failed';
+    btn.style.color = 'var(--red)';
+  }
+  setTimeout(() => { btn.textContent = original; btn.style.color = ''; btn.disabled = false; }, 4000);
+}
+
+async function toggleKillSwitch() {
+  const endpoint = currentlyPaused ? '/api/resume' : '/api/pause';
+  await fetch(endpoint, {method: 'POST'});
+  fetchStatus();
+}
+
+async function saveRisk() {
+  const btn = document.getElementById('saveRiskBtn');
+  btn.textContent = 'Saving…';
+  const payload = {
+    max_slippage_pct: Number(document.getElementById('maxSlippagePct').value),
+    default_contracts: Number(document.getElementById('defaultContracts').value),
+    max_contracts_hard_cap: Number(document.getElementById('maxContractsCap').value),
+    take_profit_pct: Number(document.getElementById('takeProfitPct').value),
+    stop_loss_pct: Number(document.getElementById('stopLossPct').value),
+    size_tag_map: Object.fromEntries(sizeTagMap.filter(r => r.tag).map(r => [r.tag, r.contracts])),
+    sizing_mode: sizingMode,
+    budget_usd: Number(document.getElementById('budgetUsd').value),
+    entry_order_type: entryOrderType,
+    stop_order_type: stopOrderType,
+  };
+  await fetch('/api/settings', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)});
+  btn.textContent = 'Saved — live now'; btn.classList.add('saved');
+  setTimeout(() => { btn.textContent = 'Save — applies immediately'; btn.classList.remove('saved'); }, 1800);
+}
+
+async function fetchTrades() {
+  try {
+    const res = await fetch('/api/trades?limit=30');
+    const {trades} = await res.json();
+    const body = document.getElementById('tradesBody');
+    const empty = document.getElementById('tradesEmpty');
+    if (!trades.length) { body.innerHTML = ''; empty.style.display = 'block'; return; }
+    empty.style.display = 'none';
+    body.innerHTML = trades.map(t => {
+      const sym = t.parsed ? `${t.parsed.symbol} ${t.parsed.strike}${t.parsed.option_type}` : '—';
+      const detail = t.approved
+        ? (t.order_payload ? `${t.order_payload.contracts}x @ $${t.order_payload.entry_limit}` : '')
+        : t.reason;
+      const time = new Date(t.ts + 'Z').toLocaleTimeString();
+      const timing = t.order_payload && t.order_payload.timing;
+      let latencyCell = '—';
+      if (timing) {
+        const tooltip = [
+          `Discord \u2192 received: ${timing.posted_to_received_ms}ms`,
+          `Parse: ${timing.parse_ms}ms${timing.used_llm_fallback ? ' (LLM fallback)' : ''}`,
+          `Quote fetch: ${timing.quote_fetch_ms}ms`,
+          `Risk eval: ${timing.risk_eval_ms}ms`,
+          timing.order_submit_ms !== undefined ? `Order submit: ${timing.order_submit_ms}ms` : null,
+        ].filter(Boolean).join('\n');
+        latencyCell = `<span title="${tooltip}" style="cursor:help;border-bottom:1px dotted var(--ink-faint);">${timing.total_ms}ms</span>`;
+      }
+      return `<tr>
+        <td>${time}</td>
+        <td class="symbol">${sym}</td>
+        <td><span class="badge ${t.approved ? 'approved' : 'rejected'}">${t.approved ? 'Approved' : 'Rejected'}</span></td>
+        <td>${detail}</td>
+        <td>${latencyCell}</td>
+      </tr>`;
+    }).join('');
+  } catch (e) {}
+}
+
+let isShuttingDown = false;
+function tick() { if (!isShuttingDown) { fetchStatus(); fetchTrades(); } }
+let pollTimer = setInterval(tick, 3000);
+tick();
+
+function confirmShutdown() {
+  const ok = confirm(
+    "Shut down the bot?\n\nThis stops the Discord listener and Tastytrade connection completely. " +
+    "No more signals will be processed until you start it again manually (start.bat or python run.py)."
+  );
+  if (ok) doShutdown();
+}
+
+async function doShutdown() {
+  isShuttingDown = true;
+  clearInterval(pollTimer);
+  const btn = document.getElementById('shutdownBtn');
+  btn.textContent = 'Shutting down…';
+  btn.disabled = true;
+  try {
+    await fetch('/api/shutdown', { method: 'POST' });
+  } catch (e) {}
+
+  document.querySelector('.app').innerHTML = `
+    <div style="padding: 60px 40px; text-align: center;">
+      <div style="font-size: 17px; font-weight: 600; margin-bottom: 10px;">Bot stopped</div>
+      <div style="font-size: 13px; color: var(--ink-dim); line-height: 1.6;">
+        The process has shut down. This page won't reconnect on its own.<br>
+        Run <span style="font-family: var(--mono); color: var(--amber);">start.bat</span>
+        (or <span style="font-family: var(--mono); color: var(--amber);">python run.py</span>)
+        again when you want to resume, then reload this page.
+      </div>
+    </div>
+  `;
+}
+</script>
+</body>
+</html>

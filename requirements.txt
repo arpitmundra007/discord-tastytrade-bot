@@ -1,0 +1,16 @@
+fastapi==0.141.1
+uvicorn==0.52.1
+tastytrade==13.2.2
+python-dotenv==1.2.2
+pydantic==2.13.4
+keyring==25.7.0
+anthropic==0.122.0
+
+# Self-bot mode only - see README before using. discord.py-self and
+# discord.py share the same `discord` import namespace and cannot coexist;
+# never install discord.py alongside this.
+discord.py-self==2.1.0
+# Python 3.13+ removed the stdlib `audioop` module this package still
+# imports (for voice support this project never uses) - this restores it.
+# Harmless no-op on Python <3.13 since the marker skips it entirely there.
+audioop-lts; python_version >= "3.13"
